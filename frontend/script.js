@@ -1,56 +1,69 @@
-const chatBox = document.getElementById("chat-box");
-const messageInput = document.getElementById("messageInput");
-const sendBtn = document.getElementById("sendBtn");
-const statusSpan = document.getElementById("status");
+const chat = document.getElementById("chat")
+const typing = document.getElementById("typing")
+const roomSelect = document.getElementById("room")
 
-// Ask username
-let username = "";
-while (!username) {
-    username = prompt("Enter your name:");
-    if (username) username = username.trim();
-}
+let username = prompt("Enter your name")
 
-// Connect to WebSocket
-const socket = new WebSocket("ws://127.0.0.1:8000/ws");
+const socket = new WebSocket("ws://localhost:8000/ws")
 
 socket.onopen = () => {
-    statusSpan.textContent = "Connected ✅";
-    addSystemMessage("Connected to server");
-};
 
-socket.onmessage = (event) => {
-    addMessage(event.data);
-};
+socket.send(JSON.stringify({
+type:"join",
+username:username,
+room:roomSelect.value
+}))
 
-socket.onclose = () => {
-    statusSpan.textContent = "Disconnected ❌";
-    addSystemMessage("Disconnected from server");
-};
-
-sendBtn.addEventListener("click", sendMessage);
-messageInput.addEventListener("keypress", function (e) {
-    if (e.key === "Enter") sendMessage();
-});
-
-function sendMessage() {
-    const message = messageInput.value.trim();
-    if (!message) return;
-
-    socket.send(username + ": " + message);
-    messageInput.value = "";
 }
 
-function addMessage(text) {
-    const msg = document.createElement("div");
-    msg.classList.add("message");
-    msg.textContent = text;
-    chatBox.appendChild(msg);
-    chatBox.scrollTop = chatBox.scrollHeight;
+socket.onmessage = (event)=>{
+
+const data = JSON.parse(event.data)
+
+const div = document.createElement("div")
+
+if(data.type==="chat"){
+div.innerHTML="<b>"+data.username+":</b> "+data.message
 }
 
-function addSystemMessage(text) {
-    const msg = document.createElement("div");
-    msg.classList.add("system");
-    msg.textContent = text;
-    chatBox.appendChild(msg);
+if(data.type==="system"){
+div.classList.add("system")
+div.innerText=data.message
 }
+
+if(data.type==="typing"){
+typing.innerText=data.username+" is typing..."
+}
+
+if(data.type==="stop_typing"){
+typing.innerText=""
+}
+
+chat.appendChild(div)
+
+chat.scrollTop=chat.scrollHeight
+
+}
+
+function sendMessage(){
+
+const msg=document.getElementById("msg").value
+
+if(msg==="") return
+
+socket.send(JSON.stringify({
+type:"chat",
+message:msg
+}))
+
+socket.send(JSON.stringify({
+type:"stop_typing"
+}))
+
+document.getElementById("msg").value=""
+
+}
+
+document.getElementById("msg").addEventListener("input",()=>{
+socket.send(JSON.stringify({type:"typing"}))
+})

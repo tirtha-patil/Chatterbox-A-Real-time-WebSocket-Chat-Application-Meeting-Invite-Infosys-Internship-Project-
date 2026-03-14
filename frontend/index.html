@@ -1,26 +1,37 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-    <title>Chatterbox</title>
-    <link rel="stylesheet" href="style.css">
+
+<title>Tirtha Chatroom</title>
+
+<link rel="stylesheet" href="/static/style.css">
+
 </head>
+
 <body>
 
-<div class="chat-container">
-    <div class="chat-header">
-        <h2>Chatterbox 🚀</h2>
-        <span id="status">Connecting...</span>
-    </div>
+<div class="container">
 
-    <div id="chat-box"></div>
+<h1> Welcome to Tirtha's Chatterbox </h1>
 
-    <div class="input-row">
-        <input id="messageInput" type="text" placeholder="Type a message...">
-        <button id="sendBtn">Send</button>
-    </div>
+<select id="room">
+<option value="general">General</option>
+<option value="tech">Tech</option>
+<option value="fun">Fun</option>
+</select>
+
+<div id="chat"></div>
+
+<div id="typing"></div>
+
+<input id="msg" placeholder="Type message">
+
+<button onclick="sendMessage()">Send</button>
+
 </div>
 
-<script src="script.js"></script>
+<script src="/static/script.js"></script>
 
 </body>
 </html>

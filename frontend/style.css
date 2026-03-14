@@ -1,73 +1,107 @@
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg, #1e1e2f, #2b2b45);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+body{
+
+background:linear-gradient(135deg,#ffd6e8,#ffeaf4);
+
+font-family:Arial;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+height:100vh;
+
+margin:0;
+
 }
 
-.chat-container {
-    width: 400px;
-    height: 600px;
-    background: #ffffff;
-    border-radius: 15px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+.container{
+
+background:white;
+
+width:600px;
+
+padding:25px;
+
+border-radius:15px;
+
+box-shadow:0 10px 30px rgba(0,0,0,0.1);
+
+animation:fadeIn 1s ease;
+
 }
 
-.chat-header {
-    background: #4a4aff;
-    color: white;
-    padding: 15px;
-    display: flex;
-    justify-content: space-between;
+h1{
+
+text-align:center;
+
+color:#ff4fa3;
+
 }
 
-#chat-box {
-    flex: 1;
-    padding: 15px;
-    overflow-y: auto;
-    background: #f4f4f4;
+#chat{
+
+border:1px solid #eee;
+
+height:300px;
+
+overflow-y:auto;
+
+padding:10px;
+
+margin-top:10px;
+
+margin-bottom:10px;
+
 }
 
-.message {
-    margin-bottom: 10px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    background: #e0e0ff;
+button{
+
+background:#ff4fa3;
+
+border:none;
+
+padding:10px 20px;
+
+color:white;
+
+border-radius:10px;
+
+cursor:pointer;
+
 }
 
-.system {
-    font-style: italic;
-    color: gray;
+button:hover{
+
+background:#ff2a8a;
+
 }
 
-.input-row {
-    display: flex;
-    padding: 10px;
-    background: #fff;
+input{
+
+width:70%;
+
+padding:10px;
+
+border-radius:10px;
+
+border:1px solid #ddd;
+
 }
 
-#messageInput {
-    flex: 1;
-    padding: 8px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
+.system{
+
+color:gray;
+
+font-style:italic;
+
 }
 
-#sendBtn {
-    margin-left: 8px;
-    padding: 8px 16px;
-    border: none;
-    background: #4a4aff;
-    color: white;
-    border-radius: 5px;
-    cursor: pointer;
-}
+@keyframes fadeIn{
 
-#sendBtn:hover {
-    background: #3737d6;
+from{opacity:0;transform:translateY(20px)}
+
+to{opacity:1}
+
 }
