@@ -5,33 +5,27 @@ import uvicorn
 
 app = FastAPI()
 
-# Serve frontend folder
+
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 @app.get("/")
 async def read_index():
     return FileResponse("frontend/index.html")
 
-# -------------------
-# Chat Data
-# -------------------
+
 
 connections = []
 usernames = {}
 rooms = {}
 
-# -------------------
-# Broadcast function
-# -------------------
+
 
 async def broadcast(room, data):
     for conn in connections:
         if rooms.get(conn) == room:
             await conn.send_json(data)
 
-# -------------------
-# Websocket endpoint
-# -------------------
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
