@@ -1,37 +1,187 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-
-<title>Tirtha Chatroom</title>
-
-<link rel="stylesheet" href="/static/style.css">
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Chatterbox — A real-time WebSocket chat application. Join a room and start chatting instantly." />
+  <title>Chatterbox — Real-time Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
 </head>
-
 <body>
 
-<div class="container">
+  <!-- ── Animated background blobs ── -->
+  <div class="bg-blobs" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
 
-<h1> Welcome to Tirtha's Chatterbox </h1>
+  <!-- ════════════════════════════════════════════
+       JOIN SCREEN
+  ════════════════════════════════════════════ -->
+  <div id="join-screen" class="join-screen">
+    <div class="join-card glass">
+      <div class="join-logo">
+        <div class="logo-icon">💬</div>
+        <h1 class="join-title">Chatterbox</h1>
+        <p class="join-subtitle">Real-time conversations, effortlessly</p>
+      </div>
 
-<select id="room">
-<option value="general">General</option>
-<option value="tech">Tech</option>
-<option value="fun">Fun</option>
-</select>
+      <div class="join-form">
+        <div class="form-group">
+          <label for="username-input" class="form-label">Your Name</label>
+          <input
+            id="username-input"
+            type="text"
+            class="form-input"
+            placeholder="Enter your display name…"
+            maxlength="32"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
 
-<div id="chat"></div>
+        <div class="form-group">
+          <label for="room-select-join" class="form-label">Choose a Room</label>
+          <div class="room-chips" id="room-chips">
+            <button class="room-chip active" data-room="general" id="chip-general">
+              <span class="chip-icon">🌐</span> General
+            </button>
+            <button class="room-chip" data-room="tech" id="chip-tech">
+              <span class="chip-icon">💻</span> Tech
+            </button>
+            <button class="room-chip" data-room="fun" id="chip-fun">
+              <span class="chip-icon">🎉</span> Fun
+            </button>
+          </div>
+        </div>
 
-<div id="typing"></div>
+        <button id="join-btn" class="join-btn" onclick="joinChat()">
+          <span class="btn-text">Enter Chat</span>
+          <span class="btn-arrow">→</span>
+        </button>
+        <p id="join-error" class="join-error" aria-live="polite"></p>
+      </div>
+    </div>
+  </div>
 
-<input id="msg" placeholder="Type message">
+  <!-- ════════════════════════════════════════════
+       CHAT SCREEN
+  ════════════════════════════════════════════ -->
+  <div id="chat-screen" class="chat-screen hidden">
 
-<button onclick="sendMessage()">Send</button>
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar glass" id="sidebar">
+      <div class="sidebar-header">
+        <div class="app-brand">
+          <span class="brand-icon">💬</span>
+          <span class="brand-name">Chatterbox</span>
+        </div>
+        <button class="sidebar-toggle-btn" id="sidebar-toggle" aria-label="Toggle sidebar" title="Toggle sidebar">
+          ☰
+        </button>
+      </div>
 
-</div>
+      <div class="sidebar-section">
+        <h2 class="sidebar-section-title">Rooms</h2>
+        <ul class="room-list" id="room-list">
+          <li class="room-item active" data-room="general" id="room-item-general">
+            <span class="room-hash">#</span>
+            <span class="room-name-text">general</span>
+          </li>
+          <li class="room-item" data-room="tech" id="room-item-tech">
+            <span class="room-hash">#</span>
+            <span class="room-name-text">tech</span>
+          </li>
+          <li class="room-item" data-room="fun" id="room-item-fun">
+            <span class="room-hash">#</span>
+            <span class="room-name-text">fun</span>
+          </li>
+        </ul>
+      </div>
 
-<script src="/static/script.js"></script>
+      <div class="sidebar-section">
+        <h2 class="sidebar-section-title">Online — <span id="member-count">0</span></h2>
+        <ul class="member-list" id="member-list"></ul>
+      </div>
 
+      <div class="sidebar-footer">
+        <div class="user-tag">
+          <span class="user-avatar" id="my-avatar">?</span>
+          <span class="user-display-name" id="my-display-name">You</span>
+        </div>
+        <div class="conn-status" id="conn-status" title="Connection status">
+          <span class="status-dot" id="status-dot"></span>
+          <span class="status-text" id="status-text">Connecting…</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Main chat area ── -->
+    <main class="chat-main">
+
+      <!-- Top bar -->
+      <header class="chat-header glass-light">
+        <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open sidebar">☰</button>
+        <div class="chat-header-info">
+          <span class="header-room-hash">#</span>
+          <span class="header-room-name" id="header-room-name">general</span>
+        </div>
+        <div class="header-actions">
+          <span class="member-pill" id="header-member-count">
+            <span class="pill-dot"></span>
+            <span id="header-member-num">0</span> online
+          </span>
+        </div>
+      </header>
+
+      <!-- Message list -->
+      <div class="messages-wrapper">
+        <div class="messages" id="messages" role="log" aria-live="polite" aria-label="Chat messages"></div>
+      </div>
+
+      <!-- Typing indicator -->
+      <div class="typing-bar" id="typing-bar" aria-live="polite">
+        <div class="typing-dots" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <span class="typing-text" id="typing-text"></span>
+      </div>
+
+      <!-- Input bar -->
+      <div class="input-bar glass-light">
+        <!-- Emoji picker toggle -->
+        <button class="emoji-btn" id="emoji-btn" title="Emoji" aria-label="Open emoji picker">😊</button>
+
+        <!-- Emoji panel -->
+        <div class="emoji-panel glass" id="emoji-panel" aria-label="Emoji picker" role="dialog" hidden>
+          <div class="emoji-grid" id="emoji-grid"></div>
+        </div>
+
+        <input
+          id="msg-input"
+          type="text"
+          class="msg-input"
+          placeholder="Send a message…"
+          autocomplete="off"
+          maxlength="1000"
+          aria-label="Message input"
+        />
+
+        <button class="send-btn" id="send-btn" onclick="sendMessage()" aria-label="Send message" title="Send (Enter)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="/static/script.js"></script>
 </body>
 </html>
