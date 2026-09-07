@@ -1,37 +1,80 @@
-Chatterbox – Real Time WebSocket Chat
+# 💬 Chatterbox
 
-A real-time chat application built using **FastAPI and WebSockets**.
+A real-time multi-room chat application built using **FastAPI, WebSockets, and Vanilla JavaScript**.
 
-## Features
+## 🚀 Live Demo
 
-- Real-time messaging
-- Multiple chat rooms
-- Typing indicators
-- Join/leave notifications
-- Clean UI
+🔗 https://chatterbox-a-real-time-websocket-chat.onrender.com
 
-## Tech Stack
+> The application may take a few seconds to load initially as it is deployed on Render's free tier.
 
-Backend:
-FastAPI
-WebSockets
-Python
+## ✨ Features
 
-Frontend:
-HTML
-CSS
-JavaScript
+- ⚡ Real-time messaging using WebSockets
+- 🏷️ Multi-room chat support
+- 👥 Live member tracking
+- ✍️ Typing indicators
+- 🔄 Dynamic room switching
+- 😀 Built-in emoji picker
+- 🔔 Notification sounds for incoming messages
+- 📊 REST API for connection statistics
+- 🔌 Automatic WebSocket reconnection
+- 📱 Responsive user interface
 
-## Run Locally
+## 🛠️ Tech Stack
 
-Install dependencies
+**Backend**
+- Python
+- FastAPI
+- WebSockets
+- Uvicorn
 
-pip install fastapi uvicorn
+**Frontend**
+- HTML
+- CSS
+- Vanilla JavaScript
 
-Run server
+**Deployment**
+- GitHub
+- Render
 
-python main.py
+## 📂 Project Structure
 
-Open browser
+```text
+Chatterbox/
+│
+├── frontend/
+│   ├── index.html
+│   ├── style.css
+│   └── script.js
+│
+├── main.py
+├── requirements.txt
+├── README.md
+└── LICENSE
 
+to run locally:-
+git clone https://github.com/tirtha-patil/Chatterbox-A-Real-time-WebSocket-Chat-Application-Meeting-Invite-Infosys-Internship-Project-.git
+
+cd Chatterbox
+
+python -m venv .venv
+.venv\Scripts\activate
+
+pip install -r requirements.txt
+
+uvicorn main:app --reload
+
+then open
 http://localhost:8000
+
+
+🎓 Project Context
+
+Developed as part of the Infosys Springboard Virtual Internship Program, focusing on real-time communication using WebSockets and FastAPI.
+
+👩‍💻 Author
+
+Tirtha Patil
+
+Computer Science Engineering (AI & ML)
