@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Chatterbox — A real-time WebSocket chat application. Join a room and start chatting instantly." />
-  <title>Chatterbox — Real-time Chat</title>
+  <meta name="description" content="Chatterbox — Real-time WebSocket chat application with instant messaging, live member tracking, and multiple chat rooms." />
+  <title>Chatterbox — Real-Time Chat</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -12,7 +12,7 @@
 </head>
 <body>
 
-  <!-- ── Animated background blobs ── -->
+  <!-- ── Ambient Background Blobs ── -->
   <div class="bg-blobs" aria-hidden="true">
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
@@ -20,130 +20,180 @@
   </div>
 
   <!-- ════════════════════════════════════════════
-       JOIN SCREEN
+       SESSION ENTRY / JOIN SCREEN
   ════════════════════════════════════════════ -->
-  <div id="join-screen" class="join-screen">
+  <main id="join-screen" class="join-screen" role="main">
     <div class="join-card glass">
-      <div class="join-logo">
-        <div class="logo-icon">💬</div>
+      <div class="join-header">
+        <div class="join-avatar-preview" id="join-avatar-preview" aria-hidden="true">💬</div>
         <h1 class="join-title">Chatterbox</h1>
-        <p class="join-subtitle">Real-time conversations, effortlessly</p>
+        <p class="join-subtitle">Fast, lightweight, real-time messaging</p>
       </div>
 
       <div class="join-form">
         <div class="form-group">
-          <label for="username-input" class="form-label">Your Name</label>
-          <input
-            id="username-input"
-            type="text"
-            class="form-input"
-            placeholder="Enter your display name…"
-            maxlength="32"
-            autocomplete="off"
-            spellcheck="false"
-          />
+          <label for="username-input" class="form-label">Display Name</label>
+          <div class="input-wrapper">
+            <span class="input-prefix-icon" aria-hidden="true">👤</span>
+            <input
+              id="username-input"
+              type="text"
+              class="form-input"
+              placeholder="e.g. Alex, Maya, Sam…"
+              maxlength="30"
+              autocomplete="off"
+              spellcheck="false"
+              required
+            />
+          </div>
         </div>
 
         <div class="form-group">
-          <label for="room-select-join" class="form-label">Choose a Room</label>
-          <div class="room-chips" id="room-chips">
-            <button class="room-chip active" data-room="general" id="chip-general">
-              <span class="chip-icon">🌐</span> General
+          <label class="form-label" id="room-select-label">Select a Chat Room</label>
+          <div class="room-chips" id="room-chips" role="radiogroup" aria-labelledby="room-select-label">
+            <button
+              type="button"
+              class="room-chip active"
+              data-room="general"
+              id="chip-general"
+              role="radio"
+              aria-checked="true"
+            >
+              <span class="chip-icon">🌐</span>
+              <span class="chip-name">general</span>
             </button>
-            <button class="room-chip" data-room="tech" id="chip-tech">
-              <span class="chip-icon">💻</span> Tech
+            <button
+              type="button"
+              class="room-chip"
+              data-room="tech"
+              id="chip-tech"
+              role="radio"
+              aria-checked="false"
+            >
+              <span class="chip-icon">💻</span>
+              <span class="chip-name">tech</span>
             </button>
-            <button class="room-chip" data-room="fun" id="chip-fun">
-              <span class="chip-icon">🎉</span> Fun
+            <button
+              type="button"
+              class="room-chip"
+              data-room="fun"
+              id="chip-fun"
+              role="radio"
+              aria-checked="false"
+            >
+              <span class="chip-icon">🎉</span>
+              <span class="chip-name">fun</span>
             </button>
           </div>
         </div>
 
-        <button id="join-btn" class="join-btn" onclick="joinChat()">
-          <span class="btn-text">Enter Chat</span>
-          <span class="btn-arrow">→</span>
+        <button id="join-btn" class="join-btn" type="button" onclick="joinChat()">
+          <span class="btn-text">Start Chatting</span>
+          <span class="btn-arrow" aria-hidden="true">→</span>
         </button>
-        <p id="join-error" class="join-error" aria-live="polite"></p>
+
+        <p id="join-error" class="join-error" aria-live="polite" role="alert"></p>
       </div>
     </div>
-  </div>
+  </main>
 
   <!-- ════════════════════════════════════════════
        CHAT SCREEN
   ════════════════════════════════════════════ -->
-  <div id="chat-screen" class="chat-screen hidden">
+  <div id="chat-screen" class="chat-screen hidden" aria-hidden="true">
 
     <!-- ── Sidebar ── -->
-    <aside class="sidebar glass" id="sidebar">
+    <aside class="sidebar glass" id="sidebar" aria-label="Chat sidebar">
       <div class="sidebar-header">
         <div class="app-brand">
-          <span class="brand-icon">💬</span>
+          <span class="brand-icon" aria-hidden="true">💬</span>
           <span class="brand-name">Chatterbox</span>
         </div>
-        <button class="sidebar-toggle-btn" id="sidebar-toggle" aria-label="Toggle sidebar" title="Toggle sidebar">
-          ☰
+        <button class="sidebar-toggle-btn" id="sidebar-toggle" aria-label="Close sidebar" title="Close sidebar">
+          ✕
         </button>
       </div>
 
       <div class="sidebar-section">
         <h2 class="sidebar-section-title">Rooms</h2>
-        <ul class="room-list" id="room-list">
-          <li class="room-item active" data-room="general" id="room-item-general">
-            <span class="room-hash">#</span>
+        <ul class="room-list" id="room-list" role="list">
+          <li class="room-item active" data-room="general" id="room-item-general" role="button" tabindex="0">
+            <span class="room-hash" aria-hidden="true">#</span>
             <span class="room-name-text">general</span>
           </li>
-          <li class="room-item" data-room="tech" id="room-item-tech">
-            <span class="room-hash">#</span>
+          <li class="room-item" data-room="tech" id="room-item-tech" role="button" tabindex="0">
+            <span class="room-hash" aria-hidden="true">#</span>
             <span class="room-name-text">tech</span>
           </li>
-          <li class="room-item" data-room="fun" id="room-item-fun">
-            <span class="room-hash">#</span>
+          <li class="room-item" data-room="fun" id="room-item-fun" role="button" tabindex="0">
+            <span class="room-hash" aria-hidden="true">#</span>
             <span class="room-name-text">fun</span>
           </li>
         </ul>
       </div>
 
-      <div class="sidebar-section">
-        <h2 class="sidebar-section-title">Online — <span id="member-count">0</span></h2>
-        <ul class="member-list" id="member-list"></ul>
+      <div class="sidebar-section members-section">
+        <h2 class="sidebar-section-title">
+          Online Members — <span id="member-count">0</span>
+        </h2>
+        <ul class="member-list" id="member-list" role="list"></ul>
       </div>
 
       <div class="sidebar-footer">
         <div class="user-tag">
           <span class="user-avatar" id="my-avatar">?</span>
-          <span class="user-display-name" id="my-display-name">You</span>
+          <div class="user-info">
+            <span class="user-display-name" id="my-display-name">You</span>
+            <span class="user-room-badge" id="my-current-room">#general</span>
+          </div>
         </div>
         <div class="conn-status" id="conn-status" title="Connection status">
           <span class="status-dot" id="status-dot"></span>
-          <span class="status-text" id="status-text">Connecting…</span>
+          <span class="status-text" id="status-text">Connected</span>
+          <button id="reconnect-btn" class="reconnect-btn hidden" onclick="reconnectWebSocket()" title="Reconnect to server">
+            ↻ Retry
+          </button>
         </div>
       </div>
     </aside>
 
-    <!-- ── Main chat area ── -->
-    <main class="chat-main">
+    <!-- ── Main Chat Area ── -->
+    <main class="chat-main" role="main">
 
-      <!-- Top bar -->
+      <!-- Chat Header -->
       <header class="chat-header glass-light">
-        <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open sidebar">☰</button>
+        <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open sidebar" title="Toggle sidebar">
+          ☰
+        </button>
         <div class="chat-header-info">
-          <span class="header-room-hash">#</span>
+          <span class="header-room-hash" aria-hidden="true">#</span>
           <span class="header-room-name" id="header-room-name">general</span>
         </div>
         <div class="header-actions">
           <span class="member-pill" id="header-member-count">
-            <span class="pill-dot"></span>
+            <span class="pill-dot" aria-hidden="true"></span>
             <span id="header-member-num">0</span> online
           </span>
         </div>
       </header>
 
-      <!-- Message list -->
-      <div class="messages-wrapper">
+      <!-- Disconnect Alert Banner -->
+      <div id="conn-alert" class="conn-alert hidden" role="alert">
+        <span>⚠️ Connection lost. Attempting to reconnect…</span>
+        <button type="button" class="conn-alert-btn" onclick="reconnectWebSocket()">Reconnect Now</button>
+      </div>
+
+      <!-- Messages Area -->
+      <div class="messages-wrapper" id="messages-wrapper">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon" id="empty-icon" aria-hidden="true">✨</div>
+          <h3 class="empty-title">Welcome to #<span id="empty-room-name">general</span></h3>
+          <p class="empty-desc">No messages in this room yet. Say hi to get the conversation started!</p>
+        </div>
         <div class="messages" id="messages" role="log" aria-live="polite" aria-label="Chat messages"></div>
       </div>
 
-      <!-- Typing indicator -->
+      <!-- Typing Indicator -->
       <div class="typing-bar" id="typing-bar" aria-live="polite">
         <div class="typing-dots" aria-hidden="true">
           <span></span><span></span><span></span>
@@ -151,13 +201,22 @@
         <span class="typing-text" id="typing-text"></span>
       </div>
 
-      <!-- Input bar -->
+      <!-- Input Bar -->
       <div class="input-bar glass-light">
-        <!-- Emoji picker toggle -->
-        <button class="emoji-btn" id="emoji-btn" title="Emoji" aria-label="Open emoji picker">😊</button>
+        <!-- Emoji button -->
+        <button
+          type="button"
+          class="emoji-btn"
+          id="emoji-btn"
+          title="Add Emoji"
+          aria-label="Toggle emoji picker"
+          aria-expanded="false"
+        >
+          😊
+        </button>
 
         <!-- Emoji panel -->
-        <div class="emoji-panel glass" id="emoji-panel" aria-label="Emoji picker" role="dialog" hidden>
+        <div class="emoji-panel glass" id="emoji-panel" role="dialog" aria-label="Emoji picker" hidden>
           <div class="emoji-grid" id="emoji-grid"></div>
         </div>
 
@@ -165,14 +224,21 @@
           id="msg-input"
           type="text"
           class="msg-input"
-          placeholder="Send a message…"
+          placeholder="Type a message…"
           autocomplete="off"
           maxlength="1000"
-          aria-label="Message input"
+          aria-label="Message text"
         />
 
-        <button class="send-btn" id="send-btn" onclick="sendMessage()" aria-label="Send message" title="Send (Enter)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true">
+        <button
+          type="button"
+          class="send-btn"
+          id="send-btn"
+          onclick="sendMessage()"
+          aria-label="Send message"
+          title="Send (Enter)"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" aria-hidden="true">
             <line x1="22" y1="2" x2="11" y2="13"></line>
             <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
           </svg>

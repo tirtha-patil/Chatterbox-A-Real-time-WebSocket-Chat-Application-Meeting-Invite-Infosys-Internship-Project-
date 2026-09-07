@@ -1,8 +1,8 @@
 /* ═══════════════════════════════════════════════════════════
-   Chatterbox — Frontend Logic v2
+   Chatterbox — Frontend Logic
    ═══════════════════════════════════════════════════════════ */
 
-// ── Emoji set ──────────────────────────────────────────────────────────────
+// ── Emoji Catalog ─────────────────────────────────────────────────────────
 const EMOJIS = [
   '😀','😂','🥲','😍','🤩','😎','🥳','🤔','😅','😭','😤','🤯',
   '👍','👎','👏','🙌','🤝','🫶','❤️','🔥','✨','💯','🎉','🎊',
@@ -11,42 +11,62 @@ const EMOJIS = [
   '🍕','🍔','🍣','🍩','☕','🧃','🍺','🎮','🎵','🏀','⚽','🎯',
 ];
 
-// ── State ──────────────────────────────────────────────────────────────────
-let socket        = null;
-let myUsername    = '';
-let currentRoom   = 'general';
-let typingTimer   = null;
-let isTyping      = false;
-let atBottom      = true;   // auto-scroll toggle
+// Room metadata for icons
+const ROOM_ICONS = {
+  general: '🌐',
+  tech: '💻',
+  fun: '🎉',
+};
 
-// ── DOM refs ───────────────────────────────────────────────────────────────
-const joinScreen      = document.getElementById('join-screen');
-const chatScreen      = document.getElementById('chat-screen');
-const usernameInput   = document.getElementById('username-input');
-const joinError       = document.getElementById('join-error');
-const messages        = document.getElementById('messages');
-const msgInput        = document.getElementById('msg-input');
-const typingBar       = document.getElementById('typing-bar');
-const typingText      = document.getElementById('typing-text');
-const memberList      = document.getElementById('member-list');
-const memberCount     = document.getElementById('member-count');
-const headerRoomName  = document.getElementById('header-room-name');
-const headerMemberNum = document.getElementById('header-member-num');
-const statusDot       = document.getElementById('status-dot');
-const statusText      = document.getElementById('status-text');
-const myAvatar        = document.getElementById('my-avatar');
-const myDisplayName   = document.getElementById('my-display-name');
-const emojiPanel      = document.getElementById('emoji-panel');
-const emojiGrid       = document.getElementById('emoji-grid');
-const sidebar         = document.getElementById('sidebar');
+// ── Application State ─────────────────────────────────────────────────────
+let socket            = null;
+let myUsername        = '';
+let currentRoom       = 'general';
+let typingTimer       = null;
+let isTyping          = false;
+let atBottom          = true;
+let reconnectTimer    = null;
+let reconnectAttempts = 0;
+let isIntentionalExit = false;
 
-// ── Emoji panel ────────────────────────────────────────────────────────────
-EMOJIS.forEach(emoji => {
+// ── DOM References ────────────────────────────────────────────────────────
+const joinScreen        = document.getElementById('join-screen');
+const chatScreen        = document.getElementById('chat-screen');
+const usernameInput     = document.getElementById('username-input');
+const joinAvatarPreview = document.getElementById('join-avatar-preview');
+const joinError         = document.getElementById('join-error');
+const messagesWrapper   = document.getElementById('messages-wrapper');
+const emptyState        = document.getElementById('empty-state');
+const emptyIcon         = document.getElementById('empty-icon');
+const emptyRoomName     = document.getElementById('empty-room-name');
+const messages          = document.getElementById('messages');
+const msgInput          = document.getElementById('msg-input');
+const typingBar         = document.getElementById('typing-bar');
+const typingText        = document.getElementById('typing-text');
+const memberList        = document.getElementById('member-list');
+const memberCount       = document.getElementById('member-count');
+const headerRoomName    = document.getElementById('header-room-name');
+const headerMemberNum   = document.getElementById('header-member-num');
+const statusDot         = document.getElementById('status-dot');
+const statusText        = document.getElementById('status-text');
+const reconnectBtn      = document.getElementById('reconnect-btn');
+const connAlert         = document.getElementById('conn-alert');
+const myAvatar          = document.getElementById('my-avatar');
+const myDisplayName     = document.getElementById('my-display-name');
+const myCurrentRoom     = document.getElementById('my-current-room');
+const emojiBtn          = document.getElementById('emoji-btn');
+const emojiPanel        = document.getElementById('emoji-panel');
+const emojiGrid         = document.getElementById('emoji-grid');
+const sidebar           = document.getElementById('sidebar');
+
+// ── Emoji Panel Initialization ────────────────────────────────────────────
+EMOJIS.forEach((emoji) => {
   const btn = document.createElement('button');
   btn.className = 'emoji-btn-item';
   btn.textContent = emoji;
   btn.title = emoji;
   btn.type = 'button';
+  btn.setAttribute('aria-label', `Emoji ${emoji}`);
   btn.addEventListener('click', () => {
     msgInput.value += emoji;
     msgInput.focus();
@@ -55,59 +75,121 @@ EMOJIS.forEach(emoji => {
   emojiGrid.appendChild(btn);
 });
 
-document.getElementById('emoji-btn').addEventListener('click', (e) => {
+emojiBtn.addEventListener('click', (e) => {
   e.stopPropagation();
-  const isHidden = emojiPanel.hidden;
-  emojiPanel.hidden = !isHidden;
+  const isExpanded = emojiBtn.getAttribute('aria-expanded') === 'true';
+  if (isExpanded) {
+    closeEmojiPanel();
+  } else {
+    openEmojiPanel();
+  }
 });
 
+function openEmojiPanel() {
+  emojiPanel.hidden = false;
+  emojiBtn.setAttribute('aria-expanded', 'true');
+}
+
+function closeEmojiPanel() {
+  emojiPanel.hidden = true;
+  emojiBtn.setAttribute('aria-expanded', 'false');
+}
+
 document.addEventListener('click', (e) => {
-  if (!emojiPanel.contains(e.target) && e.target.id !== 'emoji-btn') {
+  if (!emojiPanel.contains(e.target) && e.target !== emojiBtn) {
     closeEmojiPanel();
   }
 });
 
-function closeEmojiPanel() {
-  emojiPanel.hidden = true;
-}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeEmojiPanel();
+  }
+});
 
-// ── Room chips (join screen) ───────────────────────────────────────────────
-document.querySelectorAll('.room-chip').forEach(chip => {
+// ── Room Chips (Join Screen) ──────────────────────────────────────────────
+document.querySelectorAll('.room-chip').forEach((chip) => {
   chip.addEventListener('click', () => {
-    document.querySelectorAll('.room-chip').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.room-chip').forEach((c) => {
+      c.classList.remove('active');
+      c.setAttribute('aria-checked', 'false');
+    });
     chip.classList.add('active');
+    chip.setAttribute('aria-checked', 'true');
     currentRoom = chip.dataset.room;
   });
 });
 
-// ── Sidebar — room list (chat screen) ─────────────────────────────────────
-document.querySelectorAll('.room-item').forEach(item => {
-  item.addEventListener('click', () => {
+// ── Room List Selection (Chat Screen) ─────────────────────────────────────
+document.querySelectorAll('.room-item').forEach((item) => {
+  const selectRoomHandler = () => {
     const newRoom = item.dataset.room;
     if (newRoom === currentRoom) return;
     switchRoom(newRoom);
+  };
+  item.addEventListener('click', selectRoomHandler);
+  item.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      selectRoomHandler();
+    }
   });
 });
 
-// ── Mobile sidebar toggle ─────────────────────────────────────────────────
-document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+// ── Mobile Sidebar Navigation ─────────────────────────────────────────────
+const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+
+mobileMenuBtn.addEventListener('click', () => {
   sidebar.classList.toggle('open');
 });
-document.getElementById('sidebar-toggle').addEventListener('click', () => {
-  sidebar.classList.toggle('open');
+sidebarToggleBtn.addEventListener('click', () => {
+  sidebar.classList.remove('open');
 });
-// Close sidebar when clicking outside on mobile
+
+// Close sidebar on clicking backdrop outside
 document.addEventListener('click', (e) => {
   if (window.innerWidth <= 680 && sidebar.classList.contains('open')) {
-    if (!sidebar.contains(e.target) && e.target.id !== 'mobile-menu-btn') {
+    if (!sidebar.contains(e.target) && e.target !== mobileMenuBtn) {
       sidebar.classList.remove('open');
     }
   }
 });
 
-// ── Auto-scroll detection ─────────────────────────────────────────────────
+// ── Dynamic Avatar Initial on Join Screen ─────────────────────────────────
+usernameInput.addEventListener('input', () => {
+  const val = usernameInput.value.trim();
+  if (val) {
+    joinAvatarPreview.textContent = val.charAt(0).toUpperCase();
+    joinAvatarPreview.classList.add('has-letter');
+  } else {
+    joinAvatarPreview.textContent = '💬';
+    joinAvatarPreview.classList.remove('has-letter');
+  }
+  if (joinError.textContent) {
+    joinError.textContent = '';
+  }
+});
+
+// ── Empty State Management ────────────────────────────────────────────────
+function updateEmptyState(roomName) {
+  emptyRoomName.textContent = roomName;
+  emptyIcon.textContent = ROOM_ICONS[roomName] || '💬';
+  checkEmptyState();
+}
+
+function checkEmptyState() {
+  const hasMessages = messages.children.length > 0;
+  if (hasMessages) {
+    emptyState.classList.add('hidden');
+  } else {
+    emptyState.classList.remove('hidden');
+  }
+}
+
+// ── Auto-scroll Detection ─────────────────────────────────────────────────
 messages.addEventListener('scroll', () => {
-  atBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 60;
+  atBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 70;
 });
 
 function scrollToBottom(force = false) {
@@ -116,7 +198,7 @@ function scrollToBottom(force = false) {
   }
 }
 
-// ── Time formatting ───────────────────────────────────────────────────────
+// ── Helper Utilities ──────────────────────────────────────────────────────
 function formatTime(isoString) {
   try {
     const d = new Date(isoString);
@@ -126,31 +208,38 @@ function formatTime(isoString) {
   }
 }
 
-// ── Avatar initial ────────────────────────────────────────────────────────
 function getInitial(name) {
   return (name || '?').charAt(0).toUpperCase();
 }
 
-// ── Sound notification (background tab) ───────────────────────────────────
+// ── Subtle Audio Notification (when page is backgrounded) ─────────────────
 function playNotificationSound() {
   if (document.visibilityState === 'visible') return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
+
     osc.connect(gain);
     gain.connect(ctx.destination);
+
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(660, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.15);
-    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
+
+    gain.gain.setValueAtTime(0.06, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+
     osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.3);
-  } catch (_) { /* AudioContext not available */ }
+    osc.stop(ctx.currentTime + 0.25);
+  } catch (_) {
+    // Audio context may be restricted by browser autoplay policy
+  }
 }
 
-// ── Render a chat message bubble ──────────────────────────────────────────
+// ── Message Renderers ─────────────────────────────────────────────────────
 function appendMessage(data) {
   const isMe = data.username === myUsername;
   const wrapper = document.createElement('div');
@@ -181,97 +270,138 @@ function appendMessage(data) {
   wrapper.appendChild(bubble);
   messages.appendChild(wrapper);
 
-  if (!isMe) playNotificationSound();
+  checkEmptyState();
+
+  if (!isMe) {
+    playNotificationSound();
+  }
 
   scrollToBottom();
 }
 
-// ── Render a system message pill ─────────────────────────────────────────
 function appendSystem(text) {
   const el = document.createElement('div');
   el.className = 'msg-system';
   el.textContent = text;
   messages.appendChild(el);
+
+  checkEmptyState();
   scrollToBottom();
 }
 
-// ── Update connection status indicator ───────────────────────────────────
+// ── Connection Status ─────────────────────────────────────────────────────
 function setStatus(state) {
-  statusDot.className = 'status-dot ' + state;
-  const labels = { connected: 'Connected', disconnected: 'Disconnected', connecting: 'Connecting…' };
+  statusDot.className = `status-dot ${state}`;
+  const labels = {
+    connected: 'Connected',
+    disconnected: 'Disconnected',
+    connecting: 'Connecting…',
+  };
   statusText.textContent = labels[state] || state;
+
+  if (state === 'connected') {
+    reconnectBtn.classList.add('hidden');
+    connAlert.classList.add('hidden');
+    reconnectAttempts = 0;
+  } else if (state === 'disconnected') {
+    reconnectBtn.classList.remove('hidden');
+    connAlert.classList.remove('hidden');
+  } else if (state === 'connecting') {
+    reconnectBtn.classList.add('hidden');
+  }
 }
 
-// ── Update members panel ─────────────────────────────────────────────────
-function renderMembers(members) {
+// ── Live Members Rendering ────────────────────────────────────────────────
+function renderMembers(memberArray) {
   memberList.innerHTML = '';
-  members.forEach(name => {
+  const uniqueMembers = Array.from(new Set(memberArray || []));
+
+  uniqueMembers.forEach((name) => {
     const li = document.createElement('li');
     li.className = 'member-item';
+    const isMe = name === myUsername;
+
     li.innerHTML = `
       <div class="member-avatar">${getInitial(name)}</div>
-      <span>${name}</span>
+      <span class="member-name-text">${name}${isMe ? ' <small class="me-tag">(you)</small>' : ''}</span>
     `;
     memberList.appendChild(li);
   });
-  const count = members.length;
+
+  const count = uniqueMembers.length;
   memberCount.textContent = count;
   headerMemberNum.textContent = count;
 }
 
-// ── Fetch members via REST ───────────────────────────────────────────────
+// ── REST Fallback for Room Members ────────────────────────────────────────
 async function fetchMembers(room) {
   try {
     const res = await fetch(`/rooms/${encodeURIComponent(room)}/members`);
+    if (!res.ok) return;
     const data = await res.json();
     renderMembers(data.members || []);
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    // Silent fail if network issue
+  }
 }
 
-// ── Switch room ──────────────────────────────────────────────────────────
+// ── Room Switching ────────────────────────────────────────────────────────
 function switchRoom(newRoom) {
-  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  if (newRoom === currentRoom) return;
 
-  // Update sidebar active state
-  document.querySelectorAll('.room-item').forEach(i => i.classList.remove('active'));
-  const item = document.getElementById(`room-item-${newRoom}`);
-  if (item) item.classList.add('active');
+  // Update room list UI
+  document.querySelectorAll('.room-item').forEach((i) => {
+    const isActive = i.dataset.room === newRoom;
+    i.classList.toggle('active', isActive);
+  });
 
-  // Update header
-  headerRoomName.textContent = newRoom;
-
-  // Clear chat
-  messages.innerHTML = '';
-  appendSystem(`Switched to #${newRoom}`);
-
-  // Notify server
-  socket.send(JSON.stringify({ type: 'room_change', room: newRoom }));
   currentRoom = newRoom;
 
-  // Close mobile sidebar
-  sidebar.classList.remove('open');
+  // Update headers and badges
+  headerRoomName.textContent = newRoom;
+  myCurrentRoom.textContent = `#${newRoom}`;
 
-  // Fetch fresh member list
-  fetchMembers(newRoom);
+  // Reset message area & update empty state
+  messages.innerHTML = '';
+  updateEmptyState(newRoom);
+  appendSystem(`Joined #${newRoom}`);
+
+  // Send room_change event over WebSocket
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: 'room_change', room: newRoom }));
+  } else {
+    fetchMembers(newRoom);
+  }
+
+  // Close mobile drawer
+  sidebar.classList.remove('open');
 }
 
-// ── Typing indicator ─────────────────────────────────────────────────────
+// ── Typing Indicator Dispatcher ───────────────────────────────────────────
 function sendTyping() {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
   if (!isTyping) {
     isTyping = true;
     socket.send(JSON.stringify({ type: 'typing' }));
   }
+
   clearTimeout(typingTimer);
   typingTimer = setTimeout(() => {
     isTyping = false;
-    socket.send(JSON.stringify({ type: 'stop_typing' }));
-  }, 1500);
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'stop_typing' }));
+    }
+  }, 1400);
 }
 
-// ── Send message ─────────────────────────────────────────────────────────
+// ── Send Message ──────────────────────────────────────────────────────────
 function sendMessage() {
-  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    setStatus('disconnected');
+    return;
+  }
+
   const text = msgInput.value.trim();
   if (!text) return;
 
@@ -279,15 +409,16 @@ function sendMessage() {
 
   // Stop typing
   clearTimeout(typingTimer);
-  isTyping = false;
-  socket.send(JSON.stringify({ type: 'stop_typing' }));
+  if (isTyping) {
+    isTyping = false;
+    socket.send(JSON.stringify({ type: 'stop_typing' }));
+  }
 
   msgInput.value = '';
   msgInput.focus();
   closeEmojiPanel();
 }
 
-// ── Enter key to send ────────────────────────────────────────────────────
 msgInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
@@ -297,20 +428,46 @@ msgInput.addEventListener('keydown', (e) => {
 
 msgInput.addEventListener('input', sendTyping);
 
-// ── Connect WebSocket ────────────────────────────────────────────────────
+// ── WebSocket Connection & Lifecycle ──────────────────────────────────────
+function getWebSocketUrl() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = location.host || 'localhost:8000';
+  return `${protocol}//${host}/ws`;
+}
+
 function connectWebSocket(username, room) {
+  if (socket) {
+    try {
+      socket.close();
+    } catch (_) {}
+  }
+
   setStatus('connecting');
-  socket = new WebSocket(`ws://${location.host}/ws`);
+  const wsUrl = getWebSocketUrl();
+
+  try {
+    socket = new WebSocket(wsUrl);
+  } catch (err) {
+    console.error('WebSocket initialization error:', err);
+    setStatus('disconnected');
+    scheduleAutoReconnect();
+    return;
+  }
 
   socket.onopen = () => {
     setStatus('connected');
+    // Perform handshake join
     socket.send(JSON.stringify({ type: 'join', username, room }));
   };
 
   socket.onmessage = (event) => {
     let data;
-    try { data = JSON.parse(event.data); }
-    catch { return; }
+    try {
+      data = JSON.parse(event.data);
+    } catch (e) {
+      console.warn('Invalid JSON message received:', event.data);
+      return;
+    }
 
     switch (data.type) {
       case 'chat':
@@ -319,12 +476,10 @@ function connectWebSocket(username, room) {
 
       case 'system':
         appendSystem(data.message);
-        // Re-fetch members when someone joins/leaves
-        fetchMembers(currentRoom);
         break;
 
       case 'typing':
-        if (data.username !== myUsername) {
+        if (data.username && data.username !== myUsername) {
           typingBar.classList.add('active');
           typingText.textContent = `${data.username} is typing…`;
         }
@@ -336,30 +491,59 @@ function connectWebSocket(username, room) {
         break;
 
       case 'members':
-        renderMembers(data.members || []);
+        if (!data.room || data.room === currentRoom) {
+          renderMembers(data.members || []);
+        }
         break;
 
       case 'error':
-        console.error('Server error:', data.message);
+        console.error('Server error response:', data.message);
         break;
     }
   };
 
-  socket.onclose = () => {
-    setStatus('disconnected');
-    appendSystem('Disconnected from server. Refresh to reconnect.');
+  socket.onclose = (e) => {
+    if (!isIntentionalExit) {
+      setStatus('disconnected');
+      scheduleAutoReconnect();
+    }
   };
 
-  socket.onerror = () => {
+  socket.onerror = (err) => {
+    console.warn('WebSocket connection error:', err);
     setStatus('disconnected');
   };
 }
 
-// ── Join chat ─────────────────────────────────────────────────────────────
+function scheduleAutoReconnect() {
+  if (reconnectTimer || !myUsername) return;
+  const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 10000);
+  reconnectAttempts++;
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    if (socket && socket.readyState === WebSocket.OPEN) return;
+    if (myUsername) {
+      console.info(`Attempting auto-reconnect (${reconnectAttempts})…`);
+      connectWebSocket(myUsername, currentRoom);
+    }
+  }, delay);
+}
+
+function reconnectWebSocket() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (!myUsername) return;
+  connectWebSocket(myUsername, currentRoom);
+}
+
+// ── Join Chat Flow ────────────────────────────────────────────────────────
 function joinChat() {
   const name = usernameInput.value.trim();
   if (!name) {
-    joinError.textContent = 'Please enter your name to continue.';
+    joinError.textContent = 'Please enter your display name to continue.';
     usernameInput.focus();
     return;
   }
@@ -368,35 +552,48 @@ function joinChat() {
     usernameInput.focus();
     return;
   }
-  joinError.textContent = '';
+  if (name.length > 30) {
+    joinError.textContent = 'Name must be 30 characters or fewer.';
+    usernameInput.focus();
+    return;
+  }
 
+  joinError.textContent = '';
   myUsername = name;
 
-  // Update sidebar user identity
+  // Update user profile badges
   myAvatar.textContent = getInitial(name);
   myDisplayName.textContent = name;
+  myCurrentRoom.textContent = `#${currentRoom}`;
 
-  // Update sidebar room state
-  document.querySelectorAll('.room-item').forEach(i => i.classList.remove('active'));
-  const roomItem = document.getElementById(`room-item-${currentRoom}`);
-  if (roomItem) roomItem.classList.add('active');
+  // Update sidebar active room
+  document.querySelectorAll('.room-item').forEach((i) => {
+    i.classList.toggle('active', i.dataset.room === currentRoom);
+  });
 
-  // Update header
   headerRoomName.textContent = currentRoom;
+  updateEmptyState(currentRoom);
 
-  // Show chat screen
+  // Transition UI
   joinScreen.classList.add('hidden');
+  joinScreen.setAttribute('aria-hidden', 'true');
   chatScreen.classList.remove('hidden');
+  chatScreen.setAttribute('aria-hidden', 'false');
 
-  // Connect
+  // Initiate WebSocket
   connectWebSocket(myUsername, currentRoom);
   msgInput.focus();
 }
 
-// ── Allow Enter on join screen ────────────────────────────────────────────
+// ── Keyboard shortcuts ────────────────────────────────────────────────────
 usernameInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') joinChat();
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    joinChat();
+  }
 });
 
-// ── Focus username input on load ──────────────────────────────────────────
-usernameInput.focus();
+// Focus on page load
+window.addEventListener('DOMContentLoaded', () => {
+  usernameInput.focus();
+});
